@@ -6,6 +6,10 @@
 #include <x264.h>
 #include <lsmash.h>
 
+#if __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 // API
 // all API fns return zero on success, non-zero on failure.
 extern int CompressionSessionOpen(const char *output_path, int w, int h);
@@ -454,21 +458,70 @@ int main(int argc, char **argv) {
     
     printf("writing to %s, w=%d, h=%d\n", output_path, w, h);
     
-    CompressionSessionOpen(output_path, w, h);
+#if __EMSCRIPTEN__
+    printf("doing EM_ASM 1\n");
+    EM_ASM(
+        var fs = require('fs');
+        fs.writeFileSync('foobar.txt', 'yeehaw');
+    );
+    
+    printf("doing EM_ASM 2\n");
+    EM_ASM(
+       console.log("EM_ASM 2.1");
+       FS.mkdir("/working");
+       console.log("EM_ASM 2.2");
+       FS.mount(NODEFS, { root: "." }, "/working");
+       console.log("EM_ASM 2.3");
+    );
+    
+    printf("doing foobar\n");
+    FILE *file = fopen("/working/foobar.txt", "r");
+    printf("doing foobar 1\n");
+    CHK(file != NULL, "foobar");
+    printf("doing foobar 2\n");
+    char buffer[10];
+    printf("doing foobar 3\n");
+    size_t foobarlen = fread(buffer, 1, 6, file);
+    printf("doing foobar 4\n");
+    CHK(foobarlen == 6, "foobar fread");
+    printf("doing foobar 5\n");
+    fclose(file);
+    printf("done doing foobar");
+#endif
+    
+    printf("formatting output_full_path\n");
+#if __EMSCRIPTEN__
+#define PATH_PREFIX "/working/"
+#else
+#define PATH_PREFIX ""
+#endif
+    char output_full_path[255];
+    sprintf(output_full_path, PATH_PREFIX "%s", output_path);
+    printf("formatted output_full_path\n");
+    
+    printf("opening session\n");
+    CompressionSessionOpen(output_full_path, w, h);
+    printf("opened session\n");
     size_t rgba_len = w * h * 4;
     uint8_t *rgba = malloc(rgba_len);
     for (; i < argc; i++) {
-        FILE *infile = fopen(argv[i], "rb");
+        char file_path[255];
+        sprintf(file_path, PATH_PREFIX "%s", argv[i]);
+        printf("opening %s\n", file_path);
+        FILE *infile = fopen(file_path, "rb");
         size_t read = 0;
         if ((read = fread(rgba, 1, rgba_len, infile)) != rgba_len) {
-            fprintf(stderr, "Short read (%zu) from %s\n", read, argv[i]);
+            fprintf(stderr, "Short read (%zu) from %s\n", read, file_path);
             return 1; // short read
+        } else {
+            printf("successfully read %s\n", file_path);
         }
+        fclose(infile);
         CompressionSessionAddFrame(rgba);
     }
     CompressionSessionFinish();
     
-    printf("Finished!");
+    printf("Finished!\n");
 
     return 0;
 }
