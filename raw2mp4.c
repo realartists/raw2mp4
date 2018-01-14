@@ -70,7 +70,7 @@ static int mp4_write_headers(x264_nal_t *p_nal);
 
 int CompressionSessionOpen(const char *output_path, int w, int h) {
     // Configure x264 encoder
-    x264_param_default_preset(&encoder_state.param, "ultrafast", NULL);
+    x264_param_default_preset(&encoder_state.param, "veryfast", NULL);
     encoder_state.param.i_bitdepth = 8;
     encoder_state.param.i_csp = X264_CSP_I420;
     encoder_state.param.i_width  = w;
@@ -83,7 +83,7 @@ int CompressionSessionOpen(const char *output_path, int w, int h) {
     encoder_state.param.b_repeat_headers = 0;
     encoder_state.param.b_annexb = 0;
     
-    CHK(x264_param_apply_profile(&encoder_state.param, "baseline") == 0, "apply profile");
+    CHK(x264_param_apply_profile(&encoder_state.param, "main") == 0, "apply profile");
         
     CHK(x264_picture_alloc(&encoder_state.pic,  encoder_state.param.i_csp, encoder_state.param.i_width, encoder_state.param.i_height) == 0, "picture alloc");
     
