@@ -98,7 +98,7 @@ int CompressionSessionOpen(const char *output_path, int w, int h) {
     
     mp4_state.p_root = lsmash_create_root();
     
-    CHK(lsmash_open_file(output_path, 0, &mp4_state.file_param) == 0, "Unable to open file");
+    CHK(lsmash_open_file(output_path, 0, &mp4_state.file_param) == 0, "Unable to open file %s", output_path);
     
     mp4_state.summary = (lsmash_video_summary_t *)lsmash_create_summary(LSMASH_SUMMARY_TYPE_VIDEO);
     
@@ -347,6 +347,11 @@ static int encode_frame(x264_picture_t *pic) {
     return i_frame_size > 0;
 }
 
+static uint8_t clampToU8(double v) {
+    if (v < 0.0) v = 0;
+    if (v > 1.0) v = 1.0;
+    return (uint8_t)(v * 255.0);
+}
 
 int CompressionSessionAddFrame(uint8_t *rgba) {
     int w = encoder_state.param.i_width;
@@ -359,18 +364,16 @@ int CompressionSessionAddFrame(uint8_t *rgba) {
     for (int y = 0; y < h; y++) {
         for (int x = 0; x < w; x++) {
             size_t px = (y * w * 4) + x * 4;
-            uint8_t r = rgba[px];
-            uint8_t g = rgba[px+1];
-            uint8_t b = rgba[px+2];
+            double r = rgba[px] / 255.0;
+            double g = rgba[px+1] / 255.0;
+            double b = rgba[px+2] / 255.0;
             
-            uint8_t yi = (16)+  ( 0.257*r+0.504*g+0.098*b);
+            double dy = 0.299*r + 0.578*g + 0.114*b;
             
-            *yPtr++ = yi;
+            *yPtr++ = clampToU8(dy);
             if (y%2 == 0 && x%2 == 0) {
-                uint8_t ui = (128)+ ( +0.439*r-0.368*g-0.071*b);
-                uint8_t vi = (128)+ ( -0.148*r-0.291*g+0.439*b);
-                *uPtr++ = ui;
-                *vPtr++ = vi;
+                *uPtr++ = clampToU8((b - dy) * 0.565 + 0.5);
+                *vPtr++ = clampToU8((r - dy) * 0.713 + 0.5);
             }
         }
     }
@@ -459,37 +462,14 @@ int main(int argc, char **argv) {
     printf("writing to %s, w=%d, h=%d\n", output_path, w, h);
     
 #if __EMSCRIPTEN__
-    printf("doing EM_ASM 1\n");
     EM_ASM(
-        var fs = require('fs');
-        fs.writeFileSync('foobar.txt', 'yeehaw');
+       if (ENVIRONMENT_IS_NODE) {
+           FS.mkdir("/working");
+           FS.mount(NODEFS, { root: "." }, "/working");
+       }
     );
-    
-    printf("doing EM_ASM 2\n");
-    EM_ASM(
-       console.log("EM_ASM 2.1");
-       FS.mkdir("/working");
-       console.log("EM_ASM 2.2");
-       FS.mount(NODEFS, { root: "." }, "/working");
-       console.log("EM_ASM 2.3");
-    );
-    
-    printf("doing foobar\n");
-    FILE *file = fopen("/working/foobar.txt", "r");
-    printf("doing foobar 1\n");
-    CHK(file != NULL, "foobar");
-    printf("doing foobar 2\n");
-    char buffer[10];
-    printf("doing foobar 3\n");
-    size_t foobarlen = fread(buffer, 1, 6, file);
-    printf("doing foobar 4\n");
-    CHK(foobarlen == 6, "foobar fread");
-    printf("doing foobar 5\n");
-    fclose(file);
-    printf("done doing foobar");
 #endif
     
-    printf("formatting output_full_path\n");
 #if __EMSCRIPTEN__
 #define PATH_PREFIX "/working/"
 #else
@@ -497,7 +477,6 @@ int main(int argc, char **argv) {
 #endif
     char output_full_path[255];
     sprintf(output_full_path, PATH_PREFIX "%s", output_path);
-    printf("formatted output_full_path\n");
     
     printf("opening session\n");
     CompressionSessionOpen(output_full_path, w, h);

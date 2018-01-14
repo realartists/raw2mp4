@@ -9,9 +9,12 @@ raw2mp4: raw2mp4.c
 raw2mp4.bc: raw2mp4.c
 	emcc -I../build_js/include -o raw2mp4.bc raw2mp4.c
 
+raw2mp4.asm.js: raw2mp4.bc
+	emcc raw2mp4.bc ../build_js/lib/libx264.dylib ../build_js/lib/liblsmash.so -o raw2mp4.asm.js -s TOTAL_MEMORY=67108864 -Os --memory-init-file 0
+	
 raw2mp4.js: raw2mp4.bc
-	emcc raw2mp4.bc ../build_js/lib/libx264.dylib ../build_js/lib/liblsmash.so -o raw2mp4.js -s TOTAL_MEMORY=67108864 -Os --memory-init-file 0
+	emcc raw2mp4.bc ../build_js/lib/libx264.dylib ../build_js/lib/liblsmash.so -o raw2mp4.js -s TOTAL_MEMORY=67108864 -Os -s WASM=1 -s INVOKE_RUN=0
 
 clean:
-	rm -f generate raw2mp4 raw2mp4.js raw2mp4.bc
+	rm -f generate raw2mp4 *.bc *.wasm *.js
 
