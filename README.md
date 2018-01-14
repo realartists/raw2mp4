@@ -1,9 +1,14 @@
+# Overview
+
+This is the C code portion of the RetroClip web port. It handles encoding raw RGBA image data to h264 in an mpeg 4 container.
+
 # Setup
 
 ```
 mkdir x264
 git clone https://github.com/mirror/x264
 git clone https://github.com/l-smash/l-smash
+git clone https://github.com/realartists/raw2mp4
 ```
 
 # Building for macOS
@@ -21,6 +26,14 @@ cd ../x264
 make -j16
 make install
 ```
+
+## Running for macOS
+
+```
+cd raw2mp4
+```
+
+Then, can use either `make raw2mp4` or the included Xcode project.
 
 # Building for emscripten
 
@@ -109,7 +122,7 @@ emmake make install
 ### Build and run raw2mp4.node.js
 
 ```
-cd raw2mp4.node.js
+cd raw2mp4
 emmake make raw2mp4.node.js
 ```
 
