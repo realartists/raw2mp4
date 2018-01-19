@@ -449,6 +449,9 @@ int CompressionSessionFinish(void) {
     x264_encoder_close(encoder_state.h);
     mp4_close_file(encoder_state.largest_pts, encoder_state.second_largest_pts);
     
+    memset(&encoder_state, 0, sizeof(encoder_state_t));
+    memset(&mp4_state, 0, sizeof(mp4_state_t));
+    
     return 0;
 }
 
